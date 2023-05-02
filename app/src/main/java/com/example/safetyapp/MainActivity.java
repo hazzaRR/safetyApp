@@ -44,6 +44,8 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     private ArrayList<Float> GyroX = new ArrayList<>();
     private ArrayList<Float> GyroY = new ArrayList<>();
     private ArrayList<Float> GyroZ = new ArrayList<>();
+    JSONArray jsonDataArray = new JSONArray();
+    JsonArrayRequest jsonArrayRequest;
 
 
     @Override
@@ -70,16 +72,12 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             Toast.makeText(this, "Sensor service not detected", Toast.LENGTH_SHORT).show();
         }
 
-
-
-
         // set click listeners on buttons
         startButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 String username = usernameTextBox.getText().toString();
 
-//                sendPostRequest("http://192.168.58.228:5000/predict");
                 postRequestScheduler.schedule(new TimerTask() {
                     @Override
                     public void run() {
@@ -92,13 +90,13 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                         System.out.println(GyroY);
                         System.out.println(GyroZ);
 
-                        sendPostRequest("http://192.168.58.228:5000/predict");
+                        sendPostRequest();
                     }
                 }, 2000, 2000); // schedule the timer to run every 2 seconds
 
 
-                sensorManager.registerListener(MainActivity.this, accelerometer, 1000000);
-                sensorManager.registerListener(MainActivity.this, gyroscope, 1000000);
+                sensorManager.registerListener(MainActivity.this, accelerometer, 100000);
+                sensorManager.registerListener(MainActivity.this, gyroscope, 100000);
             }
 
         });
@@ -109,12 +107,25 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                 sensorManager.unregisterListener(MainActivity.this);
                 postRequestScheduler.cancel();
 
+
+                synchronized (AccelX) {
                 AccelX.clear();
+                }
+                synchronized (AccelY) {
                 AccelY.clear();
+                }
+                synchronized (AccelZ) {
                 AccelZ.clear();
+                }
+                synchronized (GyroX) {
                 GyroX.clear();
-                GyroY.clear();
-                GyroZ.clear();
+                }
+                synchronized (GyroY) {
+                    GyroY.clear();
+                }
+                synchronized (GyroZ) {
+                    GyroZ.clear();
+                }
             }
 
         });
@@ -128,9 +139,15 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 //            System.out.println(event.values[1]); // Accel y-axis
 //            System.out.println(event.values[2]); // Accel z-axis
 
+            synchronized (AccelX){
             AccelX.add(event.values[0]);
+            }
+            synchronized (AccelY){
             AccelY.add(event.values[1]);
+            }
+            synchronized (AccelZ) {
             AccelZ.add(event.values[2]);
+            }
 
         }
 
@@ -139,9 +156,17 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 //            System.out.println(event.values[1]); // Gyro y-axis
 //            System.out.println(event.values[2]); // Gyro z-axis
 
+            synchronized (GyroX) {
             GyroX.add(event.values[0]);
+            }
+
+            synchronized (GyroY) {
             GyroY.add(event.values[1]);
+            }
+
+            synchronized (GyroZ) {
             GyroZ.add(event.values[2]);
+            }
 
         }
 
@@ -152,40 +177,70 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
     }
 
-    private void sendPostRequest(String postUrl) {
+    private void sendPostRequest() {
 
         RequestQueue requestQueue = Volley.newRequestQueue(this);
-
-        JSONArray jsonDataArray;
 
 
         try {
 
         String[] details = {"Harry"};
 
-        jsonDataArray = new JSONArray();
 
-        jsonDataArray.put(new JSONArray(AccelX));
-        jsonDataArray.put(new JSONArray(AccelY));
-        jsonDataArray.put(new JSONArray(AccelZ));
-        jsonDataArray.put(new JSONArray(GyroX));
-        jsonDataArray.put(new JSONArray(GyroY));
-        jsonDataArray.put(new JSONArray(GyroZ));
-        jsonDataArray.put(new JSONArray(details));
+        synchronized (jsonDataArray) {
 
 
-    } catch (JSONException e) {
-        throw new RuntimeException(e);
-    }
+//            jsonDataArray.remove(0);
+//            jsonDataArray.remove(1);
+//            jsonDataArray.remove(2);
+//            jsonDataArray.remove(3);
+//            jsonDataArray.remove(4);
+//            jsonDataArray.remove(5);
+//            jsonDataArray.remove(6);
 
+            jsonDataArray = new JSONArray();
+
+
+            jsonDataArray.put(new JSONArray(AccelX));
+            jsonDataArray.put(new JSONArray(AccelY));
+            jsonDataArray.put(new JSONArray(AccelZ));
+            jsonDataArray.put(new JSONArray(GyroX));
+            jsonDataArray.put(new JSONArray(GyroY));
+            jsonDataArray.put(new JSONArray(GyroZ));
+            jsonDataArray.put(new JSONArray(details));
+
+        }
+
+        } catch (JSONException e) {
+            throw new RuntimeException(e);
+        }
+
+
+        synchronized (AccelX) {
+            AccelX.clear();
+        }
+        synchronized (AccelY) {
+            AccelY.clear();
+        }
+        synchronized (AccelZ) {
+            AccelZ.clear();
+        }
+        synchronized (GyroX) {
+            GyroX.clear();
+        }
+        synchronized (GyroY) {
+            GyroY.clear();
+        }
+        synchronized (GyroZ) {
+            GyroZ.clear();
+        }
 
         // Send a Post request to the api
-        JsonArrayRequest jsonArrayRequest = new JsonArrayRequest(Request.Method.POST, postUrl, jsonDataArray,
+        jsonArrayRequest = new JsonArrayRequest(Request.Method.POST, "http://192.168.0.17:5000/predict", jsonDataArray,
                 new Response.Listener<JSONArray>() {
                     @Override
                     public void onResponse(JSONArray response) {
                         System.out.println(response);
-                        ViewStructure exerciseTextView = null;
                         try {
                             String result = (String) response.get(0);
                         } catch (JSONException e) {
@@ -202,6 +257,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             }
         });
 
+        System.out.println(jsonDataArray.length());
         requestQueue.add(jsonArrayRequest);
     }
 }
