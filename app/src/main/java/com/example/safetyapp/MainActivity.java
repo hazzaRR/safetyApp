@@ -1,12 +1,19 @@
 package com.example.safetyapp;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.collection.ArraySet;
+import androidx.core.app.ActivityCompat;
 
+import android.content.Context;
+import android.content.pm.PackageManager;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
 import android.os.Bundle;
 import android.view.View;
 import android.view.ViewStructure;
@@ -20,6 +27,9 @@ import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.JsonArrayRequest;
 import com.android.volley.toolbox.Volley;
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.tasks.OnSuccessListener;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -34,8 +44,10 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     private Button endButton;
     private EditText usernameTextBox;
     private SensorManager sensorManager;
+    private FusedLocationProviderClient fusedLocationClient;
     private Sensor accelerometer;
     private Sensor gyroscope;
+    private String username;
 
 
     private final ArrayList<Float> AccelX = new ArrayList<>();
@@ -66,14 +78,25 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
 
         sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
+
+        if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            // TODO: Consider calling
+            //    ActivityCompat#requestPermissions
+            // here to request the missing permissions, and then overriding
+            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+            //                                          int[] grantResults)
+            // to handle the case where the user grants the permission. See the documentation
+            // for ActivityCompat#requestPermissions for more details.
+            return;
+        }
 
         if (sensorManager != null) {
 
             accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
             gyroscope = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
 
-        }
-        else {
+        } else {
             Toast.makeText(this, "Sensor service not detected", Toast.LENGTH_SHORT).show();
         }
 
@@ -81,7 +104,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         startButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                String username = usernameTextBox.getText().toString();
+                username = usernameTextBox.getText().toString();
 
                 postRequestScheduler.schedule(new TimerTask() {
                     @Override
@@ -107,7 +130,28 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                             System.out.println(GyroZ);
                         }
 
-                        sendPostRequest();
+                        if (ActivityCompat.checkSelfPermission(MainActivity.this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(MainActivity.this, android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                            // TODO: Consider calling
+                            //    ActivityCompat#requestPermissions
+                            // here to request the missing permissions, and then overriding
+                            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+                            //                                          int[] grantResults)
+                            // to handle the case where the user grants the permission. See the documentation
+                            // for ActivityCompat#requestPermissions for more details.
+                            return;
+                        }
+                        fusedLocationClient.getCurrentLocation()
+                                .addOnSuccessListener(MainActivity.this, new OnSuccessListener<Location>() {
+                                    @Override
+                                    public void onSuccess(Location location) {
+                                        // Got last known location. In some rare situations this can be null.
+                                        if (location != null) {
+                                            sendPostRequest(location);
+                                            // Logic to handle location object
+                                        }
+                                    }
+                                });
+
                     }
                 }, 2000, 2000); // schedule the timer to run every 2 seconds
                 // schedule the timer to run every 2 seconds
@@ -234,7 +278,9 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     }
 
 
-    private void sendPostRequest() {
+    private void sendPostRequest(Location location) {
+
+        System.out.println(location);
 
         RequestQueue requestQueue = Volley.newRequestQueue(this);
 
@@ -266,7 +312,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                                     jsonDataArray.put(new JSONArray(interpolatedGyroY));
                                     jsonDataArray.put(new JSONArray(interpolatedGyroZ));
 
-                                    jsonDataArray.put(new JSONArray(new String[]{"Harry"}));
+                                    jsonDataArray.put(new JSONArray(new String[]{username}));
 
                                     AccelX.clear();
                                     AccelY.clear();
