@@ -1,5 +1,7 @@
 package com.example.safetyapp;
 
+import static com.google.android.gms.location.LocationRequest.PRIORITY_HIGH_ACCURACY;
+
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.collection.ArraySet;
@@ -29,6 +31,7 @@ import com.android.volley.toolbox.JsonArrayRequest;
 import com.android.volley.toolbox.Volley;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.tasks.CancellationToken;
 import com.google.android.gms.tasks.OnSuccessListener;
 
 import org.json.JSONArray;
@@ -104,6 +107,8 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         startButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+    
+                System.out.println("test");
                 username = usernameTextBox.getText().toString();
 
                 postRequestScheduler.schedule(new TimerTask() {
@@ -140,7 +145,8 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                             // for ActivityCompat#requestPermissions for more details.
                             return;
                         }
-                        fusedLocationClient.getCurrentLocation()
+                        CancellationToken CancellationToken = null;
+                        fusedLocationClient.getCurrentLocation(PRIORITY_HIGH_ACCURACY, CancellationToken)
                                 .addOnSuccessListener(MainActivity.this, new OnSuccessListener<Location>() {
                                     @Override
                                     public void onSuccess(Location location) {
@@ -312,7 +318,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                                     jsonDataArray.put(new JSONArray(interpolatedGyroY));
                                     jsonDataArray.put(new JSONArray(interpolatedGyroZ));
 
-                                    jsonDataArray.put(new JSONArray(new String[]{username}));
+                                    jsonDataArray.put(new JSONArray(new String[]{username, String.valueOf(location.getLatitude()), String.valueOf(location.getLongitude())}));
 
                                     AccelX.clear();
                                     AccelY.clear();
@@ -337,9 +343,11 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                 }
             }
         }
-
+    
+        
+        
         // Send a Post request to the api
-        jsonArrayRequest = new JsonArrayRequest(Request.Method.POST, "http://192.168.0.31:5000/predict", jsonDataArray,
+        jsonArrayRequest = new JsonArrayRequest(Request.Method.POST, "http://139.222.237.93:5000/predict", jsonDataArray,
                 new Response.Listener<JSONArray>() {
                     @Override
                     public void onResponse(JSONArray response) {
